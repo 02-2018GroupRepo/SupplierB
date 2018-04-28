@@ -29,6 +29,7 @@ public class InvoiceDao {
     DataSource dataSource;
 
     private final String EXISTING_INVENTORY = "SELECT * from inventory";
+    private final String EXISTING_PRODUCT = "SELECT * from product";
     private final String GET_PRODUCT = "SELECT id, name, description, retail_price, FROM product";
     private final String GET_PRODUCT_BY_ID = GET_PRODUCT + " where id = ?";
     private final String GET_WHOLESALE_PRICE = "SELECT product.wholesale_price FROM product INNER JOIN inventory ON inventory.id = product.id";
@@ -106,13 +107,22 @@ public class InvoiceDao {
         return totalDue;
     }
 
-    public BigDecimal[] getWholesaleSum(){
+    public BigDecimal[] getWholesaleSum() {
+        List<Inventory> existingInventory = jdbcTemplate.query(EXISTING_INVENTORY, new BeanPropertyRowMapper<>(Inventory.class));
+        List<Product> existingProduct = jdbcTemplate.query(EXISTING_PRODUCT, new BeanPropertyRowMapper<>(Product.class));
         BigDecimal finalTotal = new BigDecimal(0.0);
         BigDecimal totalCash = finance.getTotalBalance();
-        List<BigDecimal> listOfWholesalePrice = jdbcTemplate.queryForList(GET_WHOLESALE_PRICE, BigDecimal.class);
-        for (BigDecimal total : listOfWholesalePrice) {
-            //System.out.println(total);
-            finalTotal = finalTotal.add(total);
+        int availableItem = 0;
+        BigDecimal wholesaleProce = new BigDecimal(0.0);
+        for (Inventory iven : existingInventory){
+            for (Product prod : existingProduct) {
+                if(iven.getId() == prod.getId()) {
+                    availableItem = iven.getNumber_available();
+                    wholesaleProce = prod.getWholesale_price();
+                    BigDecimal total = wholesaleProce.multiply(BigDecimal.valueOf(availableItem));
+                    finalTotal = finalTotal.add(total);
+                }
+            }
         }
         BigDecimal [] arr = new BigDecimal[]{totalCash, finalTotal};
         return arr;
